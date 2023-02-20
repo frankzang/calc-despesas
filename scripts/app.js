@@ -1,32 +1,70 @@
 import {
   LitElement,
   html,
+  css,
   repeat,
+  createRef,
+  ref,
+  when,
 } from 'https://cdn.jsdelivr.net/gh/lit/dist@2.6.1/all/lit-all.min.js';
-import { ExpenseStatus } from './user-expense.js';
-import { clamp } from './utils.js';
 
-const randomId = () => String(Math.random() * 1000);
+import { PlayerEvents } from './player-input.js';
+import { ExpenseEvents, ExpenseStatus } from './player-expense.js';
+import { formatCurrency, clamp } from './utils.js';
+import { buildUser, buildExpense } from './data.js';
+import { buttonStyles } from './styles.js';
 
-const buildUser = ({ name = '', value = 0 } = {}) => ({
-  id: randomId(),
-  name,
-  value,
-});
+// Components
+import './results-modal.js';
 
-const currencyFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'BRL',
-});
+export class App extends LitElement {
+  static styles = [
+    buttonStyles,
+    css`
+      * {
+        box-sizing: border-box;
+      }
 
-const buildExpense = ({ name = '', value = 0 } = {}) => ({
-  id: randomId(),
-  name,
-  value,
-  paidBy: ExpenseStatus.ToBePaid,
-});
+      main {
+        padding-bottom: 70px;
+        postion: relative;
+      }
 
-export class MyElement extends LitElement {
+      section {
+        width: 100%;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .players {
+        display: flex;
+        gap: 16px;
+        width: 100%;
+      }
+
+      .expenses {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .create-expense-btn {
+        margin-bottom: 32px;
+      }
+
+      footer {
+        position: fixed;
+        bottom: 0px;
+        width: 100%;
+        padding: 8px;
+        background-color: white;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+      }
+    `,
+  ];
+
   static properties = {
     players: { type: Array, state: true },
     expenses: { type: Array, state: true },
@@ -36,127 +74,143 @@ export class MyElement extends LitElement {
     super();
 
     this.players = [
-      buildUser({ name: 'Luigi', value: 85 }),
-      buildUser({
-        name: 'Mario',
-        value: 15,
-      }),
+      buildUser({ name: 'pagador 1', value: 50 }),
+      buildUser({ name: 'pagador 2', value: 50 }),
     ];
 
-    this.expenses = [
-      buildExpense({ name: 'dep 1', value: 450 }),
-      buildExpense({ name: 'dep 2', value: 790 }),
-      buildExpense({ name: 'dep 3', value: 854 }),
-    ];
+    this.expenses = [];
 
-    this.addEventListener('user:update', (evt) => {
-      const { id, name, value } = evt.detail;
+    this.resultsModalRef = createRef();
 
-      const currntPlayer = this.players.find((p) => p.id === id);
-
-      currntPlayer.value = value;
-      currntPlayer.name = name;
-
-      this.players.forEach((player) => {
-        if (player !== currntPlayer) {
-          player.value = 100 - value;
-        }
-      });
-
-      this.players = [...this.players];
-    });
-
-    this.addEventListener('expense:update', (evt) => {
-      const { id, name, value, paidBy } = evt.detail;
-
-      const currentExpense = this.expenses.find((expense) => expense.id === id);
-
-      currentExpense.name = name;
-      currentExpense.value = value;
-      currentExpense.paidBy = paidBy;
-
-      this.expenses = [...this.expenses];
-    });
-
-    this.addEventListener('expense:remove', (evt) => {
-      const { id } = evt.detail;
-      this.expenses = this.expenses.filter((expense) => expense.id !== id);
-    });
+    this.#initEventListners();
   }
+
+  #initEventListners = () => {
+    this.addEventListener(PlayerEvents.UPDATE, this.#onUpdatePlayer);
+
+    this.addEventListener(ExpenseEvents.UPDATE, this.#onUpdateExpense);
+
+    this.addEventListener(ExpenseEvents.REMOVE, this.#onRemoveExpense);
+  };
+
+  #onUpdatePlayer = (evt) => {
+    const { uid, ...rest } = evt.detail;
+
+    const currentPlayer = this.players.find((p) => p.uid === uid);
+    const updatedPlayer = {
+      ...currentPlayer,
+      ...rest,
+    };
+
+    this.players.splice(
+      this.players.findIndex((expense) => expense.uid === uid),
+      1,
+      updatedPlayer
+    );
+
+    this.players.forEach((player) => {
+      if (player.uid !== currentPlayer.uid) {
+        player.value = 100 - rest.value;
+      }
+    });
+
+    this.players = [...this.players];
+  };
+
+  #onUpdateExpense = (evt) => {
+    const { uid, ...rest } = evt.detail;
+
+    const currentExpense = this.expenses.find((expense) => expense.uid === uid);
+    const updatedExpense = {
+      ...currentExpense,
+      ...rest,
+    };
+
+    this.expenses.splice(
+      this.expenses.findIndex((expense) => expense.uid === uid),
+      1,
+      updatedExpense
+    );
+
+    this.expenses = [...this.expenses];
+  };
+
+  #onRemoveExpense = (evt) => {
+    const { uid } = evt.detail;
+
+    this.expenses = this.expenses.filter((expense) => expense.uid !== uid);
+  };
 
   render() {
     return html`
-      ${this.players.map(
-        (player) =>
-          html`
-            <user-input
-              id="${player.id}"
-              name="${player.name}"
-              value="${player.value}"
-            ></user-input>
-            <br />
-          `
-      )}
-      <h2>Despesas</h2>
-      <button type="button" @click="${this._addExpense}">Nova despesa</button>
-      <br />
-      <br />
-
-      ${repeat(
-        this.expenses,
-        (expense) => expense.id,
-        (expense) => html`<user-expense
-          .id=${expense.id}
-          .name=${expense.name}
-          .value=${expense.value}
-          .paidBy=${expense.paidBy}
-          .players=${this.players}
-        ></user-expense>`
-      )}
-
-      <table>
-        <tbody>
-          <tr>
-            <th>Pagador</th>
-            <th>Pago</th>
-            <th>A receber</th>
-          </tr>
-          ${this._getTotalPayedByPlayerList().map(
-            (row) => html`
-              <tr>
-                ${row.map((td) => html`<td>${td}</td>`)}
-              </tr>
-            `
-          )}
-        </tbody>
-      </table>
-      <table>
-        <tbody>
-          <tr>
-            <th>Pagador</th>
-            <th>Total a pagar</th>
-            <th>Total a pagar menos valor pago</th>
-          </tr>
-          ${this._getTotalToPay().map(
-            (row) => html`
-              <tr>
-                ${row.map((td) => html`<td>${td}</td>`)}
-              </tr>
-            `
-          )}
-        </tbody>
-      </table>
+      <main>
+        <section aria-labeledby="players-title">
+          <h1 id="players-title" class="section-title">Pagadores</h1>
+          <div class="players">
+            ${this.players.map(
+              (player) =>
+                html`
+                  <player-input
+                    uid="${player.uid}"
+                    name="${player.name}"
+                    value="${player.value}"
+                  ></player-input>
+                `
+            )}
+          </div>
+        </section>
+        <section aria-labeledby="expenses-title">
+          <h2 id="expenses-title" class="section-title">Despesas</h2>
+          <button
+            type="button"
+            @click="${this.#addExpense}"
+            class="btn primary create-expense-btn"
+          >
+            Nova despesa
+          </button>
+          <div class="expenses">
+            ${repeat(
+              this.expenses,
+              (expense) => expense.uid,
+              (expense) => html`<user-expense
+                .uid=${expense.uid}
+                .name=${expense.name}
+                .value=${expense.value}
+                .paidBy=${expense.paidBy}
+                .players=${this.players}
+              >
+              </user-expense>`
+            )}
+          </div>
+        </section>
+        ${html`
+          <footer>
+            <button
+              ?disabled=${this.expenses.length === 0}
+              @click=${this.#openResultsModal}
+              class="btn primary"
+            >
+              mostrar resultados
+            </button>
+          </footer>
+        `}
+        <results-modal
+          ${ref(this.resultsModalRef)}
+          .paid=${this.#totalAlreadyPaid}
+          .left=${this.#totalLeftToPay}
+        ></results-modal>
+      </main>
     `;
   }
 
-  _addExpense = () => {
+  #addExpense = () => {
     this.expenses = [buildExpense(), ...this.expenses];
   };
 
-  _getTotalPayedByPlayer = () => {
-    const pps = this.players.map((player) => {
+  get #totalAlreadyPaid() {
+    return this.players.map((player) => {
       const paid = this.expenses
-        .filter((expense) => expense.paidBy === player.id)
+        .filter((expense) => expense.paidBy === player.uid)
         .reduce((acc, next) => acc + next.value, 0);
 
       const payback = paid - paid * (player.value / 100);
@@ -167,47 +221,33 @@ export class MyElement extends LitElement {
         payback,
       };
     });
+  }
 
-    return pps;
-  };
-
-  _getTotalPayedByPlayerList = () => {
-    return this._getTotalPayedByPlayer().map((data) => [
-      data.player.name,
-      data.paid,
-      data.payback,
-    ]);
-  };
-
-  _getTotalToPay = () => {
-    const totalToPayByUser = this.players.map((player) => {
-      const totalPaidByUser = this._getTotalPayedByPlayer();
-      const totalPaiedByThisUser = totalPaidByUser.find(
-        (data) => data.player.id === player.id
+  get #totalLeftToPay() {
+    return this.players.map((player) => {
+      const totalAlreadyPaidByThisPlayer = this.#totalAlreadyPaid.find(
+        (data) => data.player.uid === player.uid
       );
-      const exp = this.expenses;
 
-      console.log(this.expenses[0]);
-
-      const toPay = this.expenses
+      const totalToBePaid = this.expenses
         .filter((expense) => expense.paidBy === ExpenseStatus.ToBePaid)
         .reduce((acc, next) => acc + next.value, 0);
 
-      const percentToPay = toPay * (player.value / 100);
+      const percentToPay = totalToBePaid * (player.value / 100);
 
-      const minusPaid = percentToPay - totalPaiedByThisUser.payback;
+      const minusPaid = percentToPay - totalAlreadyPaidByThisPlayer.payback;
 
-      const res = [
+      return [
         player.name,
-        currencyFormatter.format(percentToPay),
-        currencyFormatter.format(clamp(0, Infinity, minusPaid)),
+        formatCurrency(percentToPay),
+        formatCurrency(clamp(0, Infinity, minusPaid)),
       ];
-
-      return res;
     });
+  }
 
-    return totalToPayByUser;
+  #openResultsModal = () => {
+    this.resultsModalRef.value.onOpen();
   };
 }
 
-customElements.define('my-element', MyElement);
+customElements.define('app-container', App);
