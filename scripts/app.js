@@ -5,8 +5,8 @@ import {
   repeat,
   createRef,
   ref,
-  when,
 } from 'https://cdn.jsdelivr.net/gh/lit/dist@2.6.1/all/lit-all.min.js';
+import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6/+esm';
 
 import { PlayerEvents } from './player-input.js';
 import { ExpenseEvents, ExpenseStatus } from './player-expense.js';
@@ -16,6 +16,11 @@ import { buttonStyles } from './styles.js';
 
 // Components
 import './results-modal.js';
+
+const DatabaseKeys = {
+  PLAYERS: 'players',
+  EXPENSES: 'expenses',
+};
 
 export class App extends LitElement {
   static styles = [
@@ -62,16 +67,23 @@ export class App extends LitElement {
         background-color: white;
         border-top: 1px solid rgba(0, 0, 0, 0.1);
       }
+
+      .loading {
+        padding: 16px;
+      }
     `,
   ];
 
   static properties = {
     players: { type: Array, state: true },
     expenses: { type: Array, state: true },
+    isLoadingData: { type: Boolean, state: true },
   };
 
   constructor() {
     super();
+
+    this.isLoadingData = true;
 
     this.players = [
       buildUser({ name: 'pagador 1', value: 50 }),
@@ -82,8 +94,21 @@ export class App extends LitElement {
 
     this.resultsModalRef = createRef();
 
+    this.#getData();
     this.#initEventListners();
   }
+
+  #getData = async () => {
+    const [players, expenses] = await Promise.allSettled([
+      get(DatabaseKeys.PLAYERS),
+      get(DatabaseKeys.EXPENSES),
+    ]);
+
+    if (players.value) this.players = players.value;
+    if (expenses.value) this.expenses = expenses.value;
+
+    this.isLoadingData = false;
+  };
 
   #initEventListners = () => {
     this.addEventListener(PlayerEvents.UPDATE, this.#onUpdatePlayer);
@@ -92,6 +117,10 @@ export class App extends LitElement {
 
     this.addEventListener(ExpenseEvents.REMOVE, this.#onRemoveExpense);
   };
+
+  #savePlayers = () => set(DatabaseKeys.PLAYERS, this.players);
+
+  #saveExpenses = () => set(DatabaseKeys.EXPENSES, this.expenses);
 
   #onUpdatePlayer = (evt) => {
     const { uid, ...rest } = evt.detail;
@@ -115,6 +144,8 @@ export class App extends LitElement {
     });
 
     this.players = [...this.players];
+
+    this.#savePlayers();
   };
 
   #onUpdateExpense = (evt) => {
@@ -133,15 +164,21 @@ export class App extends LitElement {
     );
 
     this.expenses = [...this.expenses];
+
+    this.#saveExpenses();
   };
 
   #onRemoveExpense = (evt) => {
     const { uid } = evt.detail;
 
     this.expenses = this.expenses.filter((expense) => expense.uid !== uid);
+
+    // this.#saveExpenses();
   };
 
   render() {
+    if (this.isLoadingData) return html`<p class="loading">Carregando...</p>`;
+
     return html`
       <main>
         <section aria-labeledby="players-title">

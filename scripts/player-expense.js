@@ -127,7 +127,7 @@ export class UserExpense extends LitElement {
         value.replace(/[^0-9.,]/g, '').replace(/,/g, '.')
       );
 
-      this.value = Number(cleanValue);
+      this.amount = Number(cleanValue);
     } else {
       this[evt.target.name] = evt.target.value;
     }
@@ -138,7 +138,7 @@ export class UserExpense extends LitElement {
       detail: {
         uid: this.uid,
         name: this.name,
-        amount: this.value,
+        amount: this.amount,
         paidBy: this.paidBy,
       },
     });
