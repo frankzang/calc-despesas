@@ -7,9 +7,9 @@ export const buildUser = ({ name = '', value = 0 } = {}) => ({
   value,
 });
 
-export const buildExpense = ({ name = '', value = 0 } = {}) => ({
+export const buildExpense = ({ name = '', amount = 0 } = {}) => ({
   uid: uniqueId(),
   name,
-  value,
+  amount,
   paidBy: ExpenseStatus.ToBePaid,
 });

@@ -3,7 +3,7 @@ import {
   html,
   css,
 } from 'https://cdn.jsdelivr.net/gh/lit/dist@2.6.1/all/lit-all.min.js';
-import { inputStyles } from './styles.js';
+import { buttonStyles, inputStyles } from './styles.js';
 
 export const ExpenseStatus = {
   ToBePaid: 'ToBePaid',
@@ -17,20 +17,21 @@ export const ExpenseEvents = {
 export class UserExpense extends LitElement {
   static styles = [
     inputStyles,
+    buttonStyles,
     css`
       :host {
         display: flex;
         flex-direction: column;
         gap: 16px;
+      }
+
+      .inputs-row {
+        display: flex;
+        gap: 16px;
         width: 100%;
       }
 
-      .players {
-        display: flex;
-        grid-column: 1 / span 2;
-      }
-
-      .player {
+      .payers-row {
         display: flex;
         flex-direction: row;
         justify-content: flex-start;
@@ -38,22 +39,8 @@ export class UserExpense extends LitElement {
         gap: 8px;
       }
 
-      .player input {
-        padding: 0px;
-        width: auto;
-      }
-
-      .inputs {
-        display: flex;
-        gap: inherit;
-      }
-
-      button {
+      .remove-expense {
         margin-left: auto;
-        background: transparent;
-        border: none;
-        color: var(--tertiary-color);
-        font-size: 1rem;
       }
     `,
   ];
@@ -61,7 +48,7 @@ export class UserExpense extends LitElement {
   static properties = {
     uid: { type: String },
     name: { type: String },
-    value: { type: Number },
+    amount: { type: Number },
     paidBy: { type: String },
     players: { type: Array },
   };
@@ -71,14 +58,14 @@ export class UserExpense extends LitElement {
 
     this.uid = '';
     this.name = '';
-    this.value = 0;
+    this.amount = 0;
     this.paidBy = '';
   }
 
   render() {
     return html`
-      <div class="inputs">
-        <label class="name"
+      <div class="inputs-row">
+        <label
           >Nome
           <input
             type="text"
@@ -87,21 +74,23 @@ export class UserExpense extends LitElement {
             @input="${this.#updateExpense}"
           />
         </label>
-        <label class="value"
+
+        <label
           >Valor
           <input
             type="text"
-            name="value"
-            .value=${this.value}
+            name="amount"
+            .value=${this.amount}
             @input="${this.#updateExpense}"
             inputmode="decimal"
           />
         </label>
       </div>
-      <fieldset class="players">
+
+      <fieldset class="payers-row">
         <legend>Já pago por</legend>
         ${this.players.map(
-          (player) => html`<label class="player">
+          (player) => html`<label>
             <input
               type="radio"
               name="paidBy"
@@ -111,7 +100,8 @@ export class UserExpense extends LitElement {
             ${player.name}
           </label>`
         )}
-        <label class="player">
+
+        <label>
           A pagar
           <input
             type="radio"
@@ -123,27 +113,24 @@ export class UserExpense extends LitElement {
         </label>
       </fieldset>
 
-      <button @click="${this.#removeExpense}" class="action">
+      <button @click="${this.#removeExpense}" class="btn link remove-expense">
         Remover despesa
       </button>
-      <br />
     `;
   }
 
   #updateExpense = (evt) => {
-    if (evt.target.name === 'value') {
-      const value = evt.target.value;
+    const { name, value } = evt.target;
 
-      const cleanValue = value
-        .replace(/[^0-9.,]/g, '')
-        .replace(/,/g, '.')
-        .replace(/^0+/, '');
-      if (cleanValue !== value) {
-        evt.target.value = cleanValue;
-      }
+    if (name === 'amount') {
+      const cleanValue = Number(
+        value.replace(/[^0-9.,]/g, '').replace(/,/g, '.')
+      );
+
+      this.value = Number(cleanValue);
+    } else {
+      this[evt.target.name] = evt.target.value;
     }
-
-    this[evt.target.name] = evt.target.value;
 
     const event = new CustomEvent(ExpenseEvents.UPDATE, {
       bubbles: true,
@@ -151,7 +138,7 @@ export class UserExpense extends LitElement {
       detail: {
         uid: this.uid,
         name: this.name,
-        value: this.value,
+        amount: this.value,
         paidBy: this.paidBy,
       },
     });

@@ -25,28 +25,43 @@ export const inputStyles = css`
     border: 1px solid rgba(0, 0, 0, 0.8);
     border-radius: 8px;
   }
+
+  label:has(input[type='radio']) {
+    flex-direction: row;
+    align-items: center;
+  }
 `;
 
 export const buttonStyles = css`
   .btn {
-    width: 100%;
     background: transparent;
-    padding: 16px;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    font-weight: bold;
-    border: 1px solid var(--secondary-color);
-    border-radius: 8px;
+    border: none;
     cursor: pointer;
-  }
-
-  .primary {
-    color: white;
-    background-color: var(--primary-color);
   }
 
   .btn:disabled {
     background-color: rgba(0, 0, 0, 0.3);
     color: rgba(0, 0, 0, 0.7);
+  }
+
+  .primary {
+    color: white;
+    background-color: var(--primary-color);
+    border-radius: 8px;
+    padding: 16px;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    font-weight: bold;
+    width: 100%;
+  }
+
+  .link {
+    width: max-content;
+    padding: 0;
+  }
+
+  .link:hover,
+  .link:focus {
+    text-decoration: underline;
   }
 `;

@@ -175,7 +175,7 @@ export class App extends LitElement {
               (expense) => html`<user-expense
                 .uid=${expense.uid}
                 .name=${expense.name}
-                .value=${expense.value}
+                .amount=${expense.amount}
                 .paidBy=${expense.paidBy}
                 .players=${this.players}
               >
@@ -211,7 +211,7 @@ export class App extends LitElement {
     return this.players.map((player) => {
       const paid = this.expenses
         .filter((expense) => expense.paidBy === player.uid)
-        .reduce((acc, next) => acc + next.value, 0);
+        .reduce((acc, next) => acc + next.amount, 0);
 
       const payback = paid - paid * (player.value / 100);
 
@@ -231,7 +231,7 @@ export class App extends LitElement {
 
       const totalToBePaid = this.expenses
         .filter((expense) => expense.paidBy === ExpenseStatus.ToBePaid)
-        .reduce((acc, next) => acc + next.value, 0);
+        .reduce((acc, next) => acc + next.amount, 0);
 
       const percentToPay = totalToBePaid * (player.value / 100);
 
